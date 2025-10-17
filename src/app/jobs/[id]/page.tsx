@@ -3,6 +3,7 @@ import { prisma } from '@/server/prisma';
 import MessageList from '@/components/MessageList';
 import MessageComposer from '@/components/MessageComposer';
 import AttachmentGallery from '@/components/AttachmentGallery';
+import StatusUpdater from '@/components/StatusUpdater';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -75,6 +76,11 @@ export default async function JobDetailPage({
             {job.description && (
               <p className="text-gray-700 mb-4">{job.description}</p>
             )}
+
+            <div className="mt-6">
+              <StatusUpdater jobId={job.id} currentStatus={job.status} />
+            </div>
+
             {clientPortalUrl && (
               <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm font-medium text-gray-700 mb-2">
@@ -83,6 +89,9 @@ export default async function JobDetailPage({
                 <code className="text-sm bg-white px-3 py-2 rounded border block overflow-x-auto">
                   {clientPortalUrl}
                 </code>
+                <p className="text-xs text-gray-600 mt-2">
+                  Copy this link and send it to your client. Valid for 7 days.
+                </p>
               </div>
             )}
           </div>
