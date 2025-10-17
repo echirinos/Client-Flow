@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  clients   Client[]
+  jobs      Job[]
+  auditLogs AuditLog[]
+}
+
+model User {
+  id    String @id @default(cuid())
+  orgId String
+  email String
+  role  String // "OWNER" or "STAFF"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  attachments  Attachment[]
+
+  @@unique([orgId, email])
+  @@index([orgId])
+}
+
+model Client {
+  id    String  @id @default(cuid())
+  orgId String
+  name  String
+  email String?
+  phone String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  jobs         Job[]
+
+  @@unique([orgId, email])
+  @@index([orgId])
+}
+
+model Job {
+  id                 String  @id @default(cuid())
+  orgId              String
+  clientId           String
+  title              String
+  description        String?
+  status             String  @default("NEW") // "NEW"|"IN_PROGRESS"|"AWAITING_CLIENT"|"COMPLETED"|"CANCELED"
+  crmProvider        String?
+  crmExternalId      String?
+  clientPortalToken  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  attachments Attachment[]
+  messages    Message[]
+  invoices    Invoice[]
+
+  @@index([orgId, status])
+  @@index([clientId])
+}
+
+model Attachment {
+  id               String  @id @default(cuid())
+  jobId            String
+  fileKey          String
+  mimeType         String
+  uploadedByClient Boolean @default(false)
+  uploadedByUserId String?
+
+  createdAt DateTime @default(now())
+
+  job  Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  jobId      String
+  senderType String // "owner"|"client"|"system"
+  body       String
+  createdAt  DateTime @default(now())
+  readAt     DateTime?
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+}
+
+model Invoice {
+  id                    String  @id @default(cuid())
+  jobId                 String
+  number                String
+  currency              String  @default("usd")
+  subtotal              Int // in cents
+  tax                   Int     @default(0) // in cents
+  total                 Int // in cents
+  status                String  @default("DRAFT") // "DRAFT"|"SENT"|"PAID"|"VOID"
+  stripePaymentLinkUrl  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  job   Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  items InvoiceItem[]
+
+  @@unique([jobId, number])
+  @@index([jobId])
+}
+
+model InvoiceItem {
+  id          String @id @default(cuid())
+  invoiceId   String
+  description String
+  qty         Int
+  unitAmount  Int // in cents
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String
+  actor      String
+  action     String
+  targetType String
+  targetId   String
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+}
